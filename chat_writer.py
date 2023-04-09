@@ -8,8 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 async def send_message(writer, message):
-    logger.debug(f'Sending message: {message}')
-    writer.write(f'{message}\n'.encode())
+    sanitized_message = message.replace(r"\n", " ")
+    logger.debug(f'Sending message: {sanitized_message}')
+    writer.write(f'{sanitized_message}\n'.encode())
     await writer.drain()
 
 
@@ -62,6 +63,7 @@ async def main():
         help='Set the logging level',
         default='INFO',
     )
+    parser.add_argument('message', type=str, help='message to be sent')
     parser.add_argument('--hash', type=str, default='user_hash.txt', help='user hash path')
     parser.add_argument('--host', type=str, default='minechat.dvmn.org', help='chat host')
     parser.add_argument('--port', type=int, default=5050, help='chat port')
@@ -73,6 +75,7 @@ async def main():
         level=getattr(logging, args.logLevel),
     )
 
+    message = args.message
     chat_host = args.host
     chat_port = args.port
     hash_path = args.hash
@@ -87,10 +90,19 @@ async def main():
         if submit_hash_message_payload is None:
             logger.info('Токен недействителен, пройдите регистрацию заново или проверьте его и перезапустите программу')
             await register_user(reader, writer, hash_path)
+        else:
+            logger.info(f'Вы авторизованы как {submit_hash_message_payload["nickname"]}')
     else:
         logger.info('Токен не обнаружен, пройдите регистрацию')
         await send_message(writer, '')
         await register_user(reader, writer, hash_path)
+
+    await send_message(writer, message)
+    logger.info(f'Ваше сообщение {message} отправлено')
+
+    logger.debug('Close the connection')
+    writer.close()
+    await writer.wait_closed()
 
 
 if __name__ == '__main__':
