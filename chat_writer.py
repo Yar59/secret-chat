@@ -8,19 +8,22 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 
+async def get_token(hash_path):
+    async with aiofiles.open(hash_path, mode='r') as f:
+        contents = await f.read()
+        user_payload = json.loads(contents)
+    return user_payload['account_hash']
+
+
 async def create_chat_connection(host, port):
     return await asyncio.open_connection(host, port)
 
 
-async def authorize_user(reader, writer, hash_path):
+async def authorize_user(reader, writer, user_token):
     connection_message = await reader.readline()
     logger.debug(f'[{datetime.now().strftime("%d.%m.%y %H:%M")}] {connection_message.decode()}')
 
-    async with aiofiles.open(hash_path, mode='r') as f:
-        contents = await f.read()
-        user_payload = json.loads(contents)
-
-    writer.write(f'{user_payload["account_hash"]}\n'.encode())
+    writer.write(f'{user_token}\n'.encode())
     await writer.drain()
 
     submit_hash_message = await reader.readline()
@@ -43,22 +46,32 @@ async def main():
         help='Set the logging level',
         default='INFO',
     )
-    parser.add_argument('--hash', type=str, default='user_hash.txt', help='user history path')
+    parser.add_argument('--hash', type=str, default='user_hash.txt', help='user hash path')
     parser.add_argument('--host', type=str, default='minechat.dvmn.org', help='chat host')
     parser.add_argument('--port', type=int, default=5050, help='chat port')
+    parser.add_argument('--token', type=str, default=None, help='user auth token')
     args = parser.parse_args()
 
     logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        format='%(asctime)s - %(levelname)s - %(message)s',
         level=getattr(logging, args.logLevel),
     )
 
     chat_host = args.host
     chat_port = args.port
     hash_path = args.hash
+    user_token = args.token or await get_token(hash_path)
+
     reader, writer = await create_chat_connection(chat_host, chat_port)
-    submit_hash_message_payload = await authorize_user(reader, writer, hash_path)
-    
+
+    if user_token is not None:
+        submit_hash_message_payload = await authorize_user(reader, writer, user_token)
+        if submit_hash_message_payload is None:
+            logger.info('Токен недействителен, пройдите регистрацию заново или проверьте его и перезапустите программу')
+    else:
+        logger.info('Токен не обнаружен, пройдите регистрацию')
+        
+
 
 if __name__ == '__main__':
     asyncio.run(main())
