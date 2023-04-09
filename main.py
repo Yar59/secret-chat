@@ -1,3 +1,4 @@
+import aiofiles
 import argparse
 import asyncio
 import logging
@@ -9,11 +10,14 @@ async def create_chat_connection(host, port):
     return await asyncio.open_connection(host, port)
 
 
-async def read_messages(reader, writer):
+async def read_messages(reader, writer, history_path):
     while True:
         try:
             message = await reader.readline()
-            print(message.decode())
+            decoded_message = message.decode()
+            print(decoded_message)
+            async with aiofiles.open('chat.txt', mode='a') as file:
+                await file.write(decoded_message)
         except asyncio.CancelledError:
             logger.debug('Closing connection')
             writer.close()
@@ -35,7 +39,7 @@ async def main():
         help='Set the logging level',
         default='INFO',
     )
-    parser.add_argument('--history', type=str, default='test_photos', help='chat history directory')
+    parser.add_argument('--history', type=str, default='chat_history.txt', help='chat history directory')
     parser.add_argument('--host', type=str, default='minechat.dvmn.org', help='chat host')
     parser.add_argument('--port', type=int, default=5000, help='chat port')
     args = parser.parse_args()
@@ -47,8 +51,9 @@ async def main():
 
     chat_host = args.host
     chat_port = args.port
+    history_path = args.history
     reader, writer = await create_chat_connection(chat_host, chat_port)
-    await read_messages(reader, writer)
+    await read_messages(reader, writer, history_path)
 
 
 if __name__ == '__main__':
