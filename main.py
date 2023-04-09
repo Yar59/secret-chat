@@ -16,7 +16,7 @@ async def read_messages(reader, writer, history_path):
             message = await reader.readline()
             decoded_message = message.decode()
             print(decoded_message)
-            async with aiofiles.open('chat.txt', mode='a') as file:
+            async with aiofiles.open(history_path, mode='a') as file:
                 await file.write(decoded_message)
         except asyncio.CancelledError:
             logger.debug('Closing connection')
