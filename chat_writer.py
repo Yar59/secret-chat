@@ -9,10 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 async def get_token(hash_path):
-    async with aiofiles.open(hash_path, mode='r') as f:
-        contents = await f.read()
-        user_payload = json.loads(contents)
-    return user_payload['account_hash']
+    try:
+        async with aiofiles.open(hash_path, mode='r') as f:
+            contents = await f.read()
+            user_payload = json.loads(contents)
+        return user_payload['account_hash']
+    except FileNotFoundError:
+        return
 
 
 async def create_chat_connection(host, port):
@@ -70,7 +73,7 @@ async def main():
             logger.info('Токен недействителен, пройдите регистрацию заново или проверьте его и перезапустите программу')
     else:
         logger.info('Токен не обнаружен, пройдите регистрацию')
-        
+
 
 
 if __name__ == '__main__':
