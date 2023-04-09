@@ -2,6 +2,7 @@ import aiofiles
 import argparse
 import asyncio
 import logging
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ async def read_messages(reader, writer, history_path):
     while True:
         try:
             message = await reader.readline()
-            decoded_message = message.decode()
+            decoded_message = f'[{datetime.now().strftime("%d.%m.%y %H:%M")}] {message.decode()}'
             print(decoded_message)
             async with aiofiles.open(history_path, mode='a') as file:
                 await file.write(decoded_message)
