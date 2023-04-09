@@ -3,9 +3,14 @@ import argparse
 import asyncio
 import logging
 import json
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+async def send_message(writer, message):
+    logger.debug(f'Sending message: {message}')
+    writer.write(f'{message}\n'.encode())
+    await writer.drain()
 
 
 async def get_token(hash_path):
@@ -23,17 +28,25 @@ async def create_chat_connection(host, port):
 
 
 async def authorize_user(reader, writer, user_token):
-    connection_message = await reader.readline()
-    logger.debug(f'[{datetime.now().strftime("%d.%m.%y %H:%M")}] {connection_message.decode()}')
-
-    writer.write(f'{user_token}\n'.encode())
-    await writer.drain()
+    await send_message(writer, user_token)
 
     submit_hash_message = await reader.readline()
-    logger.debug(f'[{datetime.now().strftime("%d.%m.%y %H:%M")}] {submit_hash_message.decode()}')
+    logger.debug(submit_hash_message.decode())
 
     submit_hash_message_payload = json.loads(submit_hash_message)
     return submit_hash_message_payload
+
+
+async def register_user(reader, writer, hash_path):
+    empty_message = await reader.readline()
+    logger.debug(f'why? {empty_message}')
+    user_name = input('Введите имя пользователя: ')
+    await send_message(writer, user_name)
+    message = await reader.readline()
+    decoded_message = message.decode()
+    logger.info(f'Вы успешно зарегистрированы: {decoded_message}')
+    async with aiofiles.open(hash_path, mode='w') as file:
+        await file.write(decoded_message)
 
 
 async def main():
@@ -66,14 +79,18 @@ async def main():
     user_token = args.token or await get_token(hash_path)
 
     reader, writer = await create_chat_connection(chat_host, chat_port)
+    connection_message = await reader.readline()
+    logger.debug(connection_message.decode())
 
     if user_token is not None:
         submit_hash_message_payload = await authorize_user(reader, writer, user_token)
         if submit_hash_message_payload is None:
             logger.info('Токен недействителен, пройдите регистрацию заново или проверьте его и перезапустите программу')
+            await register_user(reader, writer, hash_path)
     else:
         logger.info('Токен не обнаружен, пройдите регистрацию')
-
+        await send_message(writer, '')
+        await register_user(reader, writer, hash_path)
 
 
 if __name__ == '__main__':
