@@ -3,6 +3,7 @@ import argparse
 import asyncio
 import logging
 import json
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,9 @@ async def create_chat_connection(host, port):
 
 
 async def authorize_user(reader, writer, hash_path):
+    connection_message = await reader.readline()
+    logger.debug(f'[{datetime.now().strftime("%d.%m.%y %H:%M")}] {connection_message.decode()}')
+
     async with aiofiles.open(hash_path, mode='r') as f:
         contents = await f.read()
         user_payload = json.loads(contents)
@@ -19,6 +23,11 @@ async def authorize_user(reader, writer, hash_path):
     writer.write(f'{user_payload["account_hash"]}\n'.encode())
     await writer.drain()
 
+    submit_hash_message = await reader.readline()
+    logger.debug(f'[{datetime.now().strftime("%d.%m.%y %H:%M")}] {submit_hash_message.decode()}')
+
+    submit_hash_message_payload = json.loads(submit_hash_message)
+    return submit_hash_message_payload
 
 
 async def main():
@@ -48,8 +57,8 @@ async def main():
     chat_port = args.port
     hash_path = args.hash
     reader, writer = await create_chat_connection(chat_host, chat_port)
-    await authorize_user(reader, writer, hash_path)
-
+    submit_hash_message_payload = await authorize_user(reader, writer, hash_path)
+    
 
 if __name__ == '__main__':
     asyncio.run(main())
