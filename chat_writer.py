@@ -73,13 +73,13 @@ async def main():
     parser.add_argument('--user_name', type=str, default=None, help='user name (uses only when token not provided or invalid)')
     args = parser.parse_args()
 
-    logging.basicConfig(
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        level=getattr(logging, args.logLevel),
-    )
-
     env = Env()
     env.read_env()
+
+    logging.basicConfig(
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        level=getattr(logging, env('LOG_LEVEL') or args.logLevel),
+    )
 
     message = args.message
     chat_host = env('CHAT_HOST') or args.host

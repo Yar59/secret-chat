@@ -5,6 +5,7 @@ from datetime import datetime
 from time import sleep
 
 import aiofiles
+from environs import Env
 
 logger = logging.getLogger(__name__)
 
@@ -48,14 +49,17 @@ async def main():
     parser.add_argument('--port', type=int, default=5000, help='chat port')
     args = parser.parse_args()
 
+    env = Env()
+    env.read_env()
+
     logging.basicConfig(
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=getattr(logging, args.logLevel),
+        level=getattr(logging, env('LOG_LEVEL') or args.logLevel),
     )
 
-    chat_host = args.host
-    chat_port = args.port
-    history_path = args.history
+    chat_host = env('CHAT_HOST') or args.host
+    chat_port = env('CHAT_READER_PORT') or args.port
+    history_path = env('HISTORY_PATH') or args.history
     reader, writer = await create_chat_connection(chat_host, chat_port)
     await read_messages(reader, writer, history_path)
 
