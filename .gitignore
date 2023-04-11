@@ -1,4 +1,5 @@
 venv/
 .env
 .idea/
-*.txt
+chat_history.txt
+user_hash.txt
