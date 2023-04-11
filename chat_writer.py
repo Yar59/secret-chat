@@ -1,8 +1,10 @@
-import aiofiles
 import argparse
 import asyncio
 import logging
 import json
+
+import aiofiles
+from environs import Env
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +40,10 @@ async def authorize_user(reader, writer, user_token):
     return submit_hash_message_payload
 
 
-async def register_user(reader, writer, hash_path):
+async def register_user(reader, writer, hash_path, user_name):
     empty_message = await reader.readline()
     logger.debug(f'why? {empty_message}')
-    user_name = input('Введите имя пользователя: ')
+    user_name = user_name or input('Введите имя пользователя: ')
     await send_message(writer, user_name)
     message = await reader.readline()
     decoded_message = message.decode()
@@ -68,6 +70,7 @@ async def main():
     parser.add_argument('--host', type=str, default='minechat.dvmn.org', help='chat host')
     parser.add_argument('--port', type=int, default=5050, help='chat port')
     parser.add_argument('--token', type=str, default=None, help='user auth token')
+    parser.add_argument('--user_name', type=str, default=None, help='user name (uses only when token not provided or invalid)')
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -75,11 +78,15 @@ async def main():
         level=getattr(logging, args.logLevel),
     )
 
+    env = Env()
+    env.read_env()
+
     message = args.message
-    chat_host = args.host
-    chat_port = args.port
-    hash_path = args.hash
-    user_token = args.token or await get_token(hash_path)
+    chat_host = env('CHAT_HOST') or args.host
+    chat_port = env('CHAT_WRITE_PORT') or args.port
+    hash_path = env('HASH_PATH') or args.hash
+    user_token = env('USER_TOKEN') or args.token or await get_token(hash_path)
+    user_name = env('USER_NAME') or args.user_name
 
     reader, writer = await create_chat_connection(chat_host, chat_port)
     connection_message = await reader.readline()
@@ -89,13 +96,13 @@ async def main():
         submit_hash_message_payload = await authorize_user(reader, writer, user_token)
         if submit_hash_message_payload is None:
             logger.info('Токен недействителен, пройдите регистрацию заново или проверьте его и перезапустите программу')
-            await register_user(reader, writer, hash_path)
+            await register_user(reader, writer, hash_path, user_name)
         else:
             logger.info(f'Вы авторизованы как {submit_hash_message_payload["nickname"]}')
     else:
         logger.info('Токен не обнаружен, пройдите регистрацию')
         await send_message(writer, '')
-        await register_user(reader, writer, hash_path)
+        await register_user(reader, writer, hash_path, user_name)
 
     await send_message(writer, message)
     logger.info(f'Ваше сообщение {message} отправлено')

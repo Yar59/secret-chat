@@ -3,6 +3,7 @@ import argparse
 import asyncio
 import logging
 from datetime import datetime
+from time import sleep
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ async def read_messages(reader, writer, history_path):
             raise
         except:
             logger.exception('Проблемы с подключением к серверу сообщений:\n')
+            sleep(3)
 
 
 async def main():
