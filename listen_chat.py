@@ -1,9 +1,10 @@
-import aiofiles
 import argparse
 import asyncio
 import logging
 from datetime import datetime
 from time import sleep
+
+import aiofiles
 
 logger = logging.getLogger(__name__)
 

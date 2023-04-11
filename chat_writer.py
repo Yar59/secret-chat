@@ -1,7 +1,7 @@
 import argparse
 import asyncio
-import logging
 import json
+import logging
 
 import aiofiles
 from environs import Env
