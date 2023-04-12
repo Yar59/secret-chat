@@ -8,6 +8,28 @@ from environs import Env
 
 logger = logging.getLogger(__name__)
 
+def get_arguments():
+    parser = argparse.ArgumentParser(
+        prog='ProgramName',
+        description='What the program does',
+        epilog='Text at the bottom of help',
+    )
+    parser.add_argument(
+        '-l', '--log',
+        dest='logLevel',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        help='Set the logging level',
+        default='INFO',
+    )
+    parser.add_argument('message', type=str, help='message to be sent')
+    parser.add_argument('--hash', type=str, default='user_hash.txt', help='user hash path')
+    parser.add_argument('--host', type=str, default='minechat.dvmn.org', help='chat host')
+    parser.add_argument('--port', type=int, default=5050, help='chat port')
+    parser.add_argument('--token', type=str, default=None, help='user auth token')
+    parser.add_argument('--user_name', type=str, default=None,
+                        help='user name (uses only when token not provided or invalid)')
+    return parser.parse_args()
+
 
 async def send_message(writer, message):
     sanitized_message = message.replace(r"\n", " ")
@@ -53,25 +75,7 @@ async def register_user(reader, writer, hash_path, user_name):
 
 
 async def main():
-    parser = argparse.ArgumentParser(
-        prog='ProgramName',
-        description='What the program does',
-        epilog='Text at the bottom of help',
-    )
-    parser.add_argument(
-        '-l', '--log',
-        dest='logLevel',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        help='Set the logging level',
-        default='INFO',
-    )
-    parser.add_argument('message', type=str, help='message to be sent')
-    parser.add_argument('--hash', type=str, default='user_hash.txt', help='user hash path')
-    parser.add_argument('--host', type=str, default='minechat.dvmn.org', help='chat host')
-    parser.add_argument('--port', type=int, default=5050, help='chat port')
-    parser.add_argument('--token', type=str, default=None, help='user auth token')
-    parser.add_argument('--user_name', type=str, default=None, help='user name (uses only when token not provided or invalid)')
-    args = parser.parse_args()
+    args = get_arguments()
 
     env = Env()
     env.read_env()
