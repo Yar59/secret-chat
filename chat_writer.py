@@ -6,7 +6,10 @@ import logging
 import aiofiles
 from environs import Env
 
+from socket_manager import create_chat_connection
+
 logger = logging.getLogger(__name__)
+
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -48,10 +51,6 @@ async def get_token(hash_path):
         return
 
 
-async def create_chat_connection(host, port):
-    return await asyncio.open_connection(host, port)
-
-
 async def authorize_user(reader, writer, user_token):
     await send_message(writer, user_token)
 
@@ -91,29 +90,30 @@ async def main():
     hash_path = env('HASH_PATH') or args.hash
     user_token = env('USER_TOKEN') or args.token or await get_token(hash_path)
     user_name = env('USER_NAME') or args.user_name
+    async with create_chat_connection(chat_host, chat_port) as connection:
+        reader, writer = connection
 
-    reader, writer = await create_chat_connection(chat_host, chat_port)
-    connection_message = await reader.readline()
-    logger.debug(connection_message.decode())
+        connection_message = await reader.readline()
+        logger.debug(connection_message.decode())
 
-    if user_token is not None:
-        submit_hash_message_payload = await authorize_user(reader, writer, user_token)
-        if submit_hash_message_payload is None:
-            logger.info('Токен недействителен, пройдите регистрацию заново или проверьте его и перезапустите программу')
-            await register_user(reader, writer, hash_path, user_name)
+        if user_token is not None:
+            submit_hash_message_payload = await authorize_user(reader, writer, user_token)
+            if submit_hash_message_payload is None:
+                logger.info('Токен недействителен, пройдите регистрацию заново или проверьте его и перезапустите программу')
+                await register_user(reader, writer, hash_path, user_name)
+            else:
+                logger.info(f'Вы авторизованы как {submit_hash_message_payload["nickname"]}')
         else:
-            logger.info(f'Вы авторизованы как {submit_hash_message_payload["nickname"]}')
-    else:
-        logger.info('Токен не обнаружен, пройдите регистрацию')
-        await send_message(writer, '')
-        await register_user(reader, writer, hash_path, user_name)
+            logger.info('Токен не обнаружен, пройдите регистрацию')
+            await send_message(writer, '')
+            await register_user(reader, writer, hash_path, user_name)
 
-    await send_message(writer, message)
-    logger.info(f'Ваше сообщение {message} отправлено')
+        await send_message(writer, message)
+        logger.info(f'Ваше сообщение {message} отправлено')
 
-    logger.debug('Close the connection')
-    writer.close()
-    await writer.wait_closed()
+        logger.debug('Close the connection')
+        writer.close()
+        await writer.wait_closed()
 
 
 if __name__ == '__main__':

@@ -7,6 +7,8 @@ from time import sleep
 import aiofiles
 from environs import Env
 
+from socket_manager import create_chat_connection
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,9 +29,6 @@ def get_arguments():
     parser.add_argument('--host', type=str, default='minechat.dvmn.org', help='chat host')
     parser.add_argument('--port', type=int, default=5000, help='chat port')
     return parser.parse_args()
-
-async def create_chat_connection(host, port):
-    return await asyncio.open_connection(host, port)
 
 
 async def read_messages(reader, writer, history_path):
@@ -64,8 +63,9 @@ async def main():
     chat_port = env('CHAT_READER_PORT') or args.port
     history_path = env('HISTORY_PATH') or args.history
 
-    reader, writer = await create_chat_connection(chat_host, chat_port)
-    await read_messages(reader, writer, history_path)
+    async with await create_chat_connection(chat_host, chat_port) as connection:
+        reader, writer = connection
+        await read_messages(reader, writer, history_path)
 
 
 if __name__ == '__main__':
