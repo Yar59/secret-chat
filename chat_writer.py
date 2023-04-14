@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_arguments():
+    env = Env()
+    env.read_env()
     parser = argparse.ArgumentParser(
         prog='ProgramName',
         description='What the program does',
@@ -31,7 +33,17 @@ def get_arguments():
     parser.add_argument('--token', type=str, default=None, help='user auth token')
     parser.add_argument('--user_name', type=str, default=None,
                         help='user name (uses only when token not provided or invalid)')
-    return parser.parse_args()
+
+    args = parser.parse_args()
+
+    message = args.message
+    chat_host = env('CHAT_HOST') or args.host
+    chat_port = env('CHAT_WRITE_PORT') or args.port
+    hash_path = env('HASH_PATH') or args.hash
+    user_token = env('USER_TOKEN') or args.token or await get_token(hash_path)
+    user_name = env('USER_NAME') or args.user_name
+    log_level = env('LOG_LEVEL') or args.logLevel
+    return message, chat_host, chat_port, user_token, user_name, log_level, hash_path
 
 
 async def send_message(writer, message):
@@ -73,23 +85,7 @@ async def register_user(reader, writer, hash_path, user_name):
         await file.write(decoded_message)
 
 
-async def main():
-    args = get_arguments()
-
-    env = Env()
-    env.read_env()
-
-    logging.basicConfig(
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        level=getattr(logging, env('LOG_LEVEL') or args.logLevel),
-    )
-
-    message = args.message
-    chat_host = env('CHAT_HOST') or args.host
-    chat_port = env('CHAT_WRITE_PORT') or args.port
-    hash_path = env('HASH_PATH') or args.hash
-    user_token = env('USER_TOKEN') or args.token or await get_token(hash_path)
-    user_name = env('USER_NAME') or args.user_name
+async def handle_message_sending(message, chat_host, chat_port, user_token, user_name, hash_path):
     async with create_chat_connection(chat_host, chat_port) as connection:
         reader, writer = connection
 
@@ -115,6 +111,17 @@ async def main():
         writer.close()
         await writer.wait_closed()
 
+
+async def main():
+    message, chat_host, chat_port, user_token, user_name, log_level, hash_path = get_arguments()
+
+    logging.basicConfig(
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        level=getattr(logging, log_level),
+    )
+
+    await handle_message_sending(message, chat_host, chat_port, user_token, user_name, hash_path)
+    
 
 if __name__ == '__main__':
     asyncio.run(main())
